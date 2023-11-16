@@ -11,7 +11,6 @@ use termion::raw::IntoRawMode;
 
 
 fn main() {
-    println!("Writing to main screen.");
     let args = std::env::args().collect::<Vec<String>>();
     let child = std::process::Command::new(&args[1])
                         .arg(args[2..].join(" "))
@@ -54,8 +53,10 @@ fn main() {
             if buffer[len - 1] != 0x0  {
                 unfinished_slide = split.pop()
             }
-
-            if split.len() > 1 && not_started_ {
+            
+            slides.append(&mut split);
+            
+            if slides.len() >= 1 && not_started_ {
                 let (lock, cvar) = &*pair2;
                 let mut started = lock.lock().unwrap();            
                 *started = true;
@@ -63,9 +64,6 @@ fn main() {
                 // We notify the condvar that the value has changed.
                 cvar.notify_one();
             }
-            slides.append(&mut split);
-            
-            
         }
         finished.store(true, std::sync::atomic::Ordering::Relaxed);
     });
@@ -86,12 +84,12 @@ fn main() {
     {
         let slides = mutex_slides.lock().expect("can unlock mutex_slides");
         let start = match slides[index].len() > height.into()  {
-            true => slides[index].len() - (height as usize),
+            true => slides[index].len() + 2 - (height as usize),
             false => 0,
 
         };
 
-        write!(screen, "{}{}{}slide: {} of {}\n\r", termion::cursor::Goto(1,1), termion::clear::CurrentLine, slides[index][start..].join(""), index, slides.len()).expect("write failed");
+        write!(screen, "{}{}{}slide: {} of {}\n\r", termion::cursor::Goto(1,1), termion::clear::CurrentLine, slides[index][start..].join(""), index+1, slides.len()).expect("write failed");
         screen.flush().expect("flush failed");
     }
 
@@ -116,7 +114,11 @@ fn main() {
                 false => 0,
     
             };
-            write!(screen, "{}{}{}slide: {} of {}\n\r", termion::cursor::Goto(1,1), termion::clear::CurrentLine, slides[index][start..].join(""), index, slides.len()).expect("write failed");
+            write!(screen, "{}{}{}slide: {} of {}\n\r", termion::cursor::Goto(1,1), termion::clear::CurrentLine, slides[index][start..].join(""), index + 1, slides.len()).expect("write failed");
+            //TODO: use size to clip
+            //size was buggy on old WSL, and I forgot what I was doing
+            //let size = termion::terminal_size().expect("cant get terminal size");
+            //write!(screen, "start: {}, height {}, len: {}, size: {:?}", start, slides[index].len(), height, size).unwrap();
             screen.flush().expect("flush failed");
         }
         
